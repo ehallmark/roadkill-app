@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, StyleSheet } from "react-native";
 import LogSightingScreen from "./src/screens/LogSightingScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
+import MapScreen from "./src/screens/MapScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -27,6 +28,16 @@ export default function App() {
               <Text style={styles.tabIcon}>{focused ? "🎯" : "🎯"}</Text>
             ),
             tabBarLabel: "Log Sighting",
+          }}
+        />
+        <Tab.Screen
+          name="Map"
+          component={MapScreen}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <Text style={styles.tabIcon}>{focused ? "🗺️" : "🗺️"}</Text>
+            ),
+            tabBarLabel: "Map",
           }}
         />
         <Tab.Screen
