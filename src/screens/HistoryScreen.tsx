@@ -104,7 +104,7 @@ export default function HistoryScreen() {
       <View style={styles.detailRow}>
         <Text style={styles.detailIcon}>📍</Text>
         <Text style={styles.detailText}>
-          {item.address || `${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}`}
+          {item.address || `${(item.latitude ?? 0).toFixed(4)}, ${(item.longitude ?? 0).toFixed(4)}`}
         </Text>
       </View>
 
@@ -112,7 +112,7 @@ export default function HistoryScreen() {
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>🌐</Text>
           <Text style={styles.coordDetailText}>
-            {item.latitude.toFixed(5)}, {item.longitude.toFixed(5)}
+            {(item.latitude ?? 0).toFixed(5)}, {(item.longitude ?? 0).toFixed(5)}
           </Text>
         </View>
       )}

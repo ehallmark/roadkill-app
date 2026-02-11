@@ -58,12 +58,12 @@ export async function getSightings(): Promise<AnimalSighting[]> {
     const data = doc.data();
     return {
       id: doc.id,
-      animal: data.animal,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      address: data.address,
-      timestamp: data.timestamp.toDate(),
-      notes: data.notes,
+      animal: data.animal || "Unknown",
+      latitude: data.latitude ?? 0,
+      longitude: data.longitude ?? 0,
+      address: data.address || undefined,
+      timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+      notes: data.notes || undefined,
     };
   });
 }

@@ -39,6 +39,9 @@ google-services.json
 # typescript
 *.tsbuildinfo
 
+# built APK
+roadkill-tracker.apk
+
 # generated native folders
 /ios
 /android
