@@ -11,18 +11,16 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
-// TODO: Replace with your own Firebase config from https://console.firebase.google.com
-// 1. Create a new Firebase project
-// 2. Add a Web app to the project
-// 3. Copy the firebaseConfig object here
-// 4. Enable Cloud Firestore in the Firebase console
+// Firebase config is loaded from environment variables.
+// For local dev: create a .env.local file (see README).
+// For CI/CD: set these as GitHub secrets.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "YOUR_PROJECT.appspot.com",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "YOUR_SENDER_ID",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "YOUR_APP_ID",
 };
 
 const app = initializeApp(firebaseConfig);
