@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -44,9 +49,29 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
+      - name: Generate build number
+        id: buildnumber
+        run: |
+          # Count total commits as auto-incrementing build number
+          BUILD_NUM=$(git rev-list --count HEAD)
+          echo "number=$BUILD_NUM" >> $GITHUB_OUTPUT
+          echo "Build number: $BUILD_NUM"
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/*.apk roadkill-tracker-build-${{ steps.buildnumber.outputs.number }}.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: roadkill-tracker-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: roadkill-tracker-build-*.apk
           retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ steps.buildnumber.outputs.number }}
+          name: "Build #${{ steps.buildnumber.outputs.number }}"
+          files: roadkill-tracker-build-*.apk
+          generate_release_notes: true
+          make_latest: "true"
