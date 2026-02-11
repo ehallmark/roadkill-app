@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: roadkill-mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: roadkill
+
+volumes:
+  mongo-data:

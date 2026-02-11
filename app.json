@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "roadkill-app",
+    "name": "Roadkill Tracker",
     "slug": "roadkill-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,21 +10,47 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs your location to tag where you spotted an animal.",
+        "NSLocationAlwaysUsageDescription": "This app needs your location to tag where you spotted an animal.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition so you can log sightings by voice.",
+        "NSMicrophoneUsageDescription": "This app needs microphone access for voice input."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1a1a2e"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Roadkill Tracker to use your location to tag animal sightings."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Roadkill Tracker to use the microphone for voice input.",
+          "speechRecognitionPermission": "Allow Roadkill Tracker to use speech recognition for voice input."
+        }
+      ]
+    ]
   }
 }
