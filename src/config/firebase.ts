@@ -31,9 +31,9 @@ export interface AnimalSighting {
   animal: string;
   latitude: number;
   longitude: number;
-  address?: string;
+  address?: string | null;
   timestamp: Date;
-  notes?: string;
+  notes?: string | null;
 }
 
 const COLLECTION_NAME = "sightings";

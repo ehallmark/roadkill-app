@@ -63,9 +63,9 @@ export default function LogSightingScreen() {
         animal: animal.trim(),
         latitude: lat,
         longitude: lng,
-        address: location.address || undefined,
+        address: location.address || null,
         timestamp: new Date(),
-        notes: notes.trim() || undefined,
+        notes: notes.trim() || null,
       });
       const savedName = animal.trim();
       setLastSaved(savedName);
