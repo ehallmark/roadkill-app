@@ -16,22 +16,34 @@ import { colors } from "../theme/colors";
 import { useLocation } from "../hooks/useLocation";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { addSighting } from "../config/database";
+import { SightingStatus } from "../config/firebase";
+import { parseStatus } from "../utils/parseStatus";
 
 export default function LogSightingScreen() {
   const [animal, setAnimal] = useState("");
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<SightingStatus>("live");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   const location = useLocation();
   const speech = useSpeechRecognition();
 
-  // Sync speech transcript into the animal field
+  // Sync speech transcript into the animal field and detect status
   useEffect(() => {
     if (speech.transcript) {
-      setAnimal(speech.transcript);
+      const { status: detected, cleanedAnimal } = parseStatus(speech.transcript);
+      setAnimal(cleanedAnimal);
+      setStatus(detected);
     }
   }, [speech.transcript]);
+
+  // Also detect status when user types
+  const handleAnimalChange = (text: string) => {
+    setAnimal(text);
+    const { status: detected } = parseStatus(text);
+    setStatus(detected);
+  };
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", {
@@ -59,8 +71,11 @@ export default function LogSightingScreen() {
     setSaving(true);
     try {
       console.log("[save] calling addSighting...");
+      const { cleanedAnimal } = parseStatus(animal);
+      const finalAnimal = cleanedAnimal.trim() || animal.trim();
       await addSighting({
-        animal: animal.trim(),
+        animal: finalAnimal,
+        status,
         latitude: lat,
         longitude: lng,
         address: location.address || null,
@@ -71,6 +86,7 @@ export default function LogSightingScreen() {
       setLastSaved(savedName);
       setAnimal("");
       setNotes("");
+      setStatus("live");
       speech.clearTranscript();
       console.log("[save] success:", savedName);
       Alert.alert("Saved!", `"${savedName}" logged successfully.`);
@@ -149,7 +165,7 @@ export default function LogSightingScreen() {
               placeholder="e.g. Deer, Raccoon, Hawk..."
               placeholderTextColor={colors.textMuted}
               value={animal}
-              onChangeText={setAnimal}
+              onChangeText={handleAnimalChange}
               autoCapitalize="words"
               returnKeyType="done"
             />
@@ -172,6 +188,24 @@ export default function LogSightingScreen() {
           {speech.error && (
             <Text style={styles.errorText}>Voice error: {speech.error}</Text>
           )}
+        </View>
+
+        {/* Status Indicator */}
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>STATUS (detected from voice, tap to change)</Text>
+          <TouchableOpacity
+            style={[
+              styles.statusBadge,
+              status === "dead" ? styles.statusDead : styles.statusLive,
+            ]}
+            onPress={() => setStatus((s) => (s === "live" ? "dead" : "live"))}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.statusIcon}>{status === "dead" ? "💀" : "🦌"}</Text>
+            <Text style={styles.statusText}>
+              {status === "dead" ? "ROADKILL" : "LIVE"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Notes Input */}
@@ -303,6 +337,29 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     minHeight: 80,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+  },
+  statusLive: {
+    backgroundColor: "#1b4332",
+  },
+  statusDead: {
+    backgroundColor: "#5c1a1a",
+  },
+  statusIcon: {
+    fontSize: 24,
+  },
+  statusText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.white,
+    letterSpacing: 2,
   },
   micButton: {
     width: 52,

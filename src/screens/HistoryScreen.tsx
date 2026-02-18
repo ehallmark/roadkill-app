@@ -90,7 +90,17 @@ export default function HistoryScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.animalName}>{item.animal}</Text>
+        <View style={styles.animalRow}>
+          <Text style={styles.animalName}>{item.animal}</Text>
+          <View style={[
+            styles.statusBadge,
+            item.status === "dead" ? styles.statusDead : styles.statusLive,
+          ]}>
+            <Text style={styles.statusBadgeText}>
+              {item.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE"}
+            </Text>
+          </View>
+        </View>
         <View style={styles.dateBadge}>
           <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
         </View>
@@ -225,11 +235,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  animalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 8,
+    flexWrap: "wrap",
+  },
   animalName: {
     fontSize: 22,
     fontWeight: "700",
     color: colors.text,
-    flex: 1,
+  },
+  statusBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  statusLive: {
+    backgroundColor: "#1b4332",
+  },
+  statusDead: {
+    backgroundColor: "#5c1a1a",
+  },
+  statusBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   dateBadge: {
     backgroundColor: colors.primaryDark,

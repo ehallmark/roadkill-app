@@ -135,9 +135,12 @@ function LeafletMap({
             hour: "2-digit",
             minute: "2-digit",
           });
+          const statusLabel = s.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE";
+          const statusColor = s.status === "dead" ? "#5c1a1a" : "#1b4332";
           marker.bindPopup(
             `<div style="font-family:sans-serif;">` +
-              `<strong style="font-size:16px;">${s.animal}</strong><br/>` +
+              `<strong style="font-size:16px;">${s.animal}</strong> ` +
+              `<span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">${statusLabel}</span><br/>` +
               `<span style="color:#666;">📍 ${s.address || `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`}</span><br/>` +
               `<span style="color:#666;">🕐 ${dateStr} ${timeStr}</span>` +
               (s.notes ? `<br/><span style="color:#888;">📝 ${s.notes}</span>` : "") +

@@ -26,9 +26,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+export type SightingStatus = "live" | "dead";
+
 export interface AnimalSighting {
   id?: string;
   animal: string;
+  status: SightingStatus;
   latitude: number;
   longitude: number;
   address?: string | null;
@@ -59,6 +62,7 @@ export async function getSightings(): Promise<AnimalSighting[]> {
     return {
       id: doc.id,
       animal: data.animal || "Unknown",
+      status: data.status === "dead" ? "dead" : "live",
       latitude: data.latitude ?? 0,
       longitude: data.longitude ?? 0,
       address: data.address || undefined,

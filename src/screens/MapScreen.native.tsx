@@ -66,9 +66,11 @@ export default function MapScreen() {
   const markersJs = validSightings
     .map((s) => {
       const label = (s.animal || "").replace(/'/g, "\\'");
+      const statusLabel = s.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE";
+      const statusColor = s.status === "dead" ? "#5c1a1a" : "#1b4332";
       const desc = (s.address || `${(s.latitude ?? 0).toFixed(4)}, ${(s.longitude ?? 0).toFixed(4)}`).replace(/'/g, "\\'");
       const dateStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : "";
-      return `L.marker([${s.latitude ?? 0}, ${s.longitude ?? 0}]).addTo(map).bindPopup('<b>${label}</b><br/>${desc}<br/>${dateStr}');`;
+      return `L.marker([${s.latitude ?? 0}, ${s.longitude ?? 0}]).addTo(map).bindPopup('<b>${label}</b> <span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${statusLabel}</span><br/>${desc}<br/>${dateStr}');`;
     })
     .join("\n");
 
