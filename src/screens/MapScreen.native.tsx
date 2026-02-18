@@ -67,10 +67,12 @@ export default function MapScreen() {
     .map((s) => {
       const label = (s.animal || "").replace(/'/g, "\\'");
       const statusLabel = s.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE";
-      const statusColor = s.status === "dead" ? "#5c1a1a" : "#1b4332";
+      const statusColor = s.status === "dead" ? "#dc2626" : "#16a34a";
+      const fillColor = s.status === "dead" ? "#fca5a5" : "#86efac";
       const desc = (s.address || `${(s.latitude ?? 0).toFixed(4)}, ${(s.longitude ?? 0).toFixed(4)}`).replace(/'/g, "\\'");
       const dateStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : "";
-      return `L.marker([${s.latitude ?? 0}, ${s.longitude ?? 0}]).addTo(map).bindPopup('<b>${label}</b> <span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${statusLabel}</span><br/>${desc}<br/>${dateStr}');`;
+      const timeStr = s.timestamp ? new Date(s.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : "";
+      return `L.circleMarker([${s.latitude ?? 0}, ${s.longitude ?? 0}], {radius: 10, color: '${statusColor}', fillColor: '${fillColor}', fillOpacity: 0.8, weight: 2}).addTo(map).bindPopup('<b>${label}</b> <span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${statusLabel}</span><br/>${desc}<br/>${dateStr} ${timeStr}');`;
     })
     .join("\n");
 

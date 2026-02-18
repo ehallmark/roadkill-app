@@ -125,7 +125,15 @@ function LeafletMap({
 
         const markers: any[] = [];
         sightings.forEach((s) => {
-          const marker = L.marker([s.latitude, s.longitude]).addTo(map);
+          const markerColor = s.status === "dead" ? "#dc2626" : "#16a34a";
+          const fillColor = s.status === "dead" ? "#fca5a5" : "#86efac";
+          const marker = L.circleMarker([s.latitude, s.longitude], {
+            radius: 10,
+            color: markerColor,
+            fillColor: fillColor,
+            fillOpacity: 0.8,
+            weight: 2,
+          }).addTo(map);
           const dateStr = s.timestamp.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
@@ -136,7 +144,7 @@ function LeafletMap({
             minute: "2-digit",
           });
           const statusLabel = s.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE";
-          const statusColor = s.status === "dead" ? "#5c1a1a" : "#1b4332";
+          const statusColor = s.status === "dead" ? "#dc2626" : "#16a34a";
           marker.bindPopup(
             `<div style="font-family:sans-serif;">` +
               `<strong style="font-size:16px;">${s.animal}</strong> ` +
