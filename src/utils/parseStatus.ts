@@ -20,7 +20,7 @@ export function parseStatus(input: string): {
 } {
   const lower = input.toLowerCase().trim();
 
-  let detectedStatus: SightingStatus = "live";
+  let detectedStatus: SightingStatus = "dead";
   let matchedKeyword = "";
 
   // Check dead keywords first (higher priority — "dead deer" should be dead)

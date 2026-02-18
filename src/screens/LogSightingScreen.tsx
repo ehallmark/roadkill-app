@@ -22,7 +22,7 @@ import { parseStatus } from "../utils/parseStatus";
 export default function LogSightingScreen() {
   const [animal, setAnimal] = useState("");
   const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState<SightingStatus>("live");
+  const [status, setStatus] = useState<SightingStatus>("dead");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
@@ -86,7 +86,7 @@ export default function LogSightingScreen() {
       setLastSaved(savedName);
       setAnimal("");
       setNotes("");
-      setStatus("live");
+      setStatus("dead");
       speech.clearTranscript();
       console.log("[save] success:", savedName);
       Alert.alert("Saved!", `"${savedName}" logged successfully.`);
