@@ -34,15 +34,19 @@ export default function LogSightingScreen() {
   } | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
+  const [now, setNow] = useState(new Date());
+
   const location = useLocation();
   const speech = useSpeechRecognition();
 
-  // Refresh location on focus and every 60 seconds while on screen
+  // Refresh location and clock on focus and every 60 seconds while on screen
   useFocusEffect(
     useCallback(() => {
       location.refresh();
+      setNow(new Date());
       const interval = setInterval(() => {
         location.refresh();
+        setNow(new Date());
       }, 60 * 1000);
       return () => clearInterval(interval);
     }, [])
@@ -76,7 +80,6 @@ export default function LogSightingScreen() {
     }).start(() => setToast(null));
   };
 
-  const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -163,18 +166,16 @@ export default function LogSightingScreen() {
     setActiveField(null);
   };
 
-  const locationLine = location.loading
+  const locationAddress = location.loading
     ? "Getting GPS fix..."
     : location.error
     ? location.error
-    : [
-        location.address,
-        location.latitude != null
-          ? `${location.latitude.toFixed(5)}, ${location.longitude?.toFixed(5)}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" — ");
+    : location.address || null;
+
+  const locationCoords =
+    !location.loading && !location.error && location.latitude != null
+      ? `${location.latitude.toFixed(5)}, ${location.longitude?.toFixed(5)}`
+      : null;
 
   const renderMicButton = (field: ActiveField) => {
     const isActive = speech.isListening && activeField === field;
@@ -218,23 +219,18 @@ export default function LogSightingScreen() {
       >
         {/* Header: Date/Time/Location */}
         <View style={styles.header}>
-          <View style={styles.headerTop}>
+          <View style={styles.headerRow}>
             <Text style={styles.headerDate}>{dateStr}</Text>
             <Text style={styles.headerTime}>{timeStr}</Text>
           </View>
-          <View style={styles.headerLocationRow}>
+          {locationAddress && (
             <Text style={styles.headerLocation} numberOfLines={1}>
-              {locationLine}
+              {locationAddress}
             </Text>
-            {location.lastUpdated && (
-              <Text style={styles.headerUpdated}>
-                {location.lastUpdated.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Text>
-            )}
-          </View>
+          )}
+          {locationCoords && (
+            <Text style={styles.headerCoords}>{locationCoords}</Text>
+          )}
         </View>
 
         {/* Two-column body */}
@@ -306,32 +302,38 @@ export default function LogSightingScreen() {
             )}
           </View>
 
-          {/* Right column: buttons */}
+          {/* Right column: buttons aligned with left column rows */}
           <View style={styles.rightColumn}>
-            <TouchableOpacity
-              style={[styles.saveButton, saving && styles.buttonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-              activeOpacity={0.8}
-            >
-              {saving ? (
-                <ActivityIndicator color={colors.white} size="small" />
-              ) : (
-                <>
-                  <Text style={styles.buttonIcon}>💾</Text>
-                  <Text style={styles.saveButtonText}>Save</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {/* Save button — aligns with Roadkill + Live cards */}
+            <View style={styles.rightButtonWrapper}>
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.buttonDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                {saving ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.buttonIcon}>💾</Text>
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonIcon}>✕</Text>
-              <Text style={styles.cancelButtonText}>Clear</Text>
-            </TouchableOpacity>
+            {/* Cancel button — aligns with Notes card */}
+            <View style={styles.rightButtonWrapperNotes}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancel}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonIcon}>✕</Text>
+                <Text style={styles.cancelButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -382,11 +384,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  headerTop: {
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   headerDate: {
     fontSize: 16,
@@ -398,20 +400,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textSecondary,
   },
-  headerLocationRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
   headerLocation: {
     fontSize: 13,
-    color: colors.textMuted,
-    flex: 1,
-    marginRight: 8,
+    color: colors.textSecondary,
+    marginBottom: 2,
   },
-  headerUpdated: {
-    fontSize: 11,
+  headerCoords: {
+    fontSize: 12,
     color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
 
   // Body two-column layout
@@ -425,7 +422,6 @@ const styles = StyleSheet.create({
   rightColumn: {
     width: 72,
     justifyContent: "flex-start",
-    gap: 12,
   },
 
   // Field cards
@@ -502,18 +498,28 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 
+  // Button wrappers to align with left column cards
+  rightButtonWrapper: {
+    flex: 2,
+    marginBottom: 12,
+  },
+  rightButtonWrapperNotes: {
+    flex: 2,
+    marginBottom: 12,
+  },
+
   // Buttons
   saveButton: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelButton: {
+    flex: 1,
     backgroundColor: "transparent",
     borderRadius: 12,
-    paddingVertical: 18,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
