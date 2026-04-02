@@ -18,6 +18,7 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchSightings = useCallback(async () => {
     try {
@@ -83,60 +84,76 @@ export default function HistoryScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: AnimalSighting }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onLongPress={() => handleDelete(item)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.animalRow}>
-          <Text style={styles.animalName}>{item.animal}</Text>
-          <View style={[
-            styles.statusBadge,
-            item.status === "dead" ? styles.statusDead : styles.statusLive,
-          ]}>
-            <Text style={styles.statusBadgeText}>
-              {item.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE"}
-            </Text>
+  const renderItem = ({ item }: { item: AnimalSighting }) => {
+    const isExpanded = expandedId === item.id;
+    const hasNotes = !!item.notes;
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          if (hasNotes) setExpandedId(isExpanded ? null : item.id || null);
+        }}
+        onLongPress={() => handleDelete(item)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.animalRow}>
+            <Text style={styles.animalName}>{item.animal}</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                item.status === "dead" ? styles.statusDead : styles.statusLive,
+              ]}
+            >
+              <Text style={styles.statusBadgeText}>
+                {item.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE"}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.dateBadge}>
+            <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
           </View>
         </View>
-        <View style={styles.dateBadge}>
-          <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
-        </View>
-      </View>
 
-      <View style={styles.detailRow}>
-        <Text style={styles.detailIcon}>🕐</Text>
-        <Text style={styles.detailText}>{formatTime(item.timestamp)}</Text>
-      </View>
-
-      <View style={styles.detailRow}>
-        <Text style={styles.detailIcon}>📍</Text>
-        <Text style={styles.detailText}>
-          {item.address || `${(item.latitude ?? 0).toFixed(4)}, ${(item.longitude ?? 0).toFixed(4)}`}
-        </Text>
-      </View>
-
-      {item.address && (
         <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>🌐</Text>
-          <Text style={styles.coordDetailText}>
-            {(item.latitude ?? 0).toFixed(5)}, {(item.longitude ?? 0).toFixed(5)}
+          <Text style={styles.detailIcon}>🕐</Text>
+          <Text style={styles.detailText}>{formatTime(item.timestamp)}</Text>
+        </View>
+
+        <View style={styles.detailRow}>
+          <Text style={styles.detailIcon}>📍</Text>
+          <Text style={styles.detailText}>
+            {item.address ||
+              `${(item.latitude ?? 0).toFixed(4)}, ${(item.longitude ?? 0).toFixed(4)}`}
           </Text>
         </View>
-      )}
 
-      {item.notes && (
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>📝</Text>
-          <Text style={styles.detailText}>{item.notes}</Text>
-        </View>
-      )}
+        {item.address && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>🌐</Text>
+            <Text style={styles.coordDetailText}>
+              {(item.latitude ?? 0).toFixed(5)},{" "}
+              {(item.longitude ?? 0).toFixed(5)}
+            </Text>
+          </View>
+        )}
 
-      <Text style={styles.deleteHint}>Long press to delete</Text>
-    </TouchableOpacity>
-  );
+        {hasNotes && !isExpanded && (
+          <Text style={styles.tapHint}>Tap to show notes</Text>
+        )}
+
+        {hasNotes && isExpanded && (
+          <View style={styles.notesBox}>
+            <Text style={styles.notesLabel}>📝 Notes</Text>
+            <Text style={styles.notesText}>{item.notes}</Text>
+          </View>
+        )}
+
+        <Text style={styles.deleteHint}>Long press to delete</Text>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -295,6 +312,32 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: "monospace",
     flex: 1,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: "italic",
+    marginTop: 6,
+  },
+  notesBox: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notesLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primary,
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  notesText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   deleteHint: {
     fontSize: 11,

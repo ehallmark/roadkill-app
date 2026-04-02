@@ -28,7 +28,10 @@ export default function LogSightingScreen() {
   const [activeField, setActiveField] = useState<ActiveField>(null);
 
   // Toast state
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const location = useLocation();
@@ -98,32 +101,52 @@ export default function LogSightingScreen() {
     }
   };
 
-  const handleSave = async (status: "dead" | "live") => {
-    const animal = status === "dead" ? roadkillAnimal : liveAnimal;
-    if (!animal.trim()) {
-      showToast(`Enter an animal name in the ${status === "dead" ? "Roadkill" : "Live"} field`, "error");
+  const handleSave = async () => {
+    const hasRoadkill = roadkillAnimal.trim().length > 0;
+    const hasLive = liveAnimal.trim().length > 0;
+
+    if (!hasRoadkill && !hasLive) {
+      showToast("Enter an animal name first", "error");
       return;
     }
 
     const lat = location.latitude ?? 0;
     const lng = location.longitude ?? 0;
+    const sharedFields = {
+      latitude: lat,
+      longitude: lng,
+      address: location.address || null,
+      timestamp: new Date(),
+      notes: notes.trim() || null,
+    };
 
     setSaving(true);
     try {
-      await addSighting({
-        animal: animal.trim(),
-        status,
-        latitude: lat,
-        longitude: lng,
-        address: location.address || null,
-        timestamp: new Date(),
-        notes: notes.trim() || null,
-      });
-      showToast(`"${animal.trim()}" saved!`, "success");
-      if (status === "dead") setRoadkillAnimal("");
-      else setLiveAnimal("");
+      const saved: string[] = [];
+
+      if (hasRoadkill) {
+        await addSighting({
+          animal: roadkillAnimal.trim(),
+          status: "dead",
+          ...sharedFields,
+        });
+        saved.push(roadkillAnimal.trim());
+        setRoadkillAnimal("");
+      }
+
+      if (hasLive) {
+        await addSighting({
+          animal: liveAnimal.trim(),
+          status: "live",
+          ...sharedFields,
+        });
+        saved.push(liveAnimal.trim());
+        setLiveAnimal("");
+      }
+
       setNotes("");
       speech.clearTranscript();
+      showToast(`Saved: ${saved.join(", ")}`, "success");
     } catch (err: any) {
       showToast(err.message || "Failed to save", "error");
     } finally {
@@ -219,11 +242,13 @@ export default function LogSightingScreen() {
           {/* Left column: inputs */}
           <View style={styles.leftColumn}>
             {/* Roadkill input */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>ROADKILL</Text>
+            <View style={[styles.fieldCard, styles.fieldCardRoadkill]}>
+              <Text style={[styles.fieldLabel, styles.fieldLabelRoadkill]}>
+                💀 ROADKILL
+              </Text>
               <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.inputRoadkill]}
                   placeholder="Animal name..."
                   placeholderTextColor={colors.textMuted}
                   value={roadkillAnimal}
@@ -236,11 +261,13 @@ export default function LogSightingScreen() {
             </View>
 
             {/* Live input */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>LIVE</Text>
+            <View style={[styles.fieldCard, styles.fieldCardLive]}>
+              <Text style={[styles.fieldLabel, styles.fieldLabelLive]}>
+                🦌 LIVE
+              </Text>
               <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.inputLive]}
                   placeholder="Animal name..."
                   placeholderTextColor={colors.textMuted}
                   value={liveAnimal}
@@ -254,7 +281,7 @@ export default function LogSightingScreen() {
 
             {/* Notes input */}
             <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>NOTES</Text>
+              <Text style={styles.fieldLabel}>📝 NOTES</Text>
               <View style={styles.inputRow}>
                 <TextInput
                   style={[styles.input, styles.notesInput]}
@@ -283,19 +310,17 @@ export default function LogSightingScreen() {
           <View style={styles.rightColumn}>
             <TouchableOpacity
               style={[styles.saveButton, saving && styles.buttonDisabled]}
-              onPress={() => {
-                // Save whichever field has content; prefer roadkill
-                if (roadkillAnimal.trim()) handleSave("dead");
-                else if (liveAnimal.trim()) handleSave("live");
-                else showToast("Enter an animal name first", "error");
-              }}
+              onPress={handleSave}
               disabled={saving}
               activeOpacity={0.8}
             >
               {saving ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={colors.white} size="small" />
               ) : (
-                <Text style={styles.buttonText}>Save</Text>
+                <>
+                  <Text style={styles.buttonIcon}>💾</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </>
               )}
             </TouchableOpacity>
 
@@ -304,7 +329,8 @@ export default function LogSightingScreen() {
               onPress={handleCancel}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text style={styles.buttonIcon}>✕</Text>
+              <Text style={styles.cancelButtonText}>Clear</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -397,7 +423,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rightColumn: {
-    width: 80,
+    width: 72,
     justifyContent: "flex-start",
     gap: 12,
   },
@@ -411,12 +437,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  fieldCardRoadkill: {
+    borderColor: "#7f1d1d",
+    backgroundColor: "#1a0a0a",
+  },
+  fieldCardLive: {
+    borderColor: "#14532d",
+    backgroundColor: "#0a1a0f",
+  },
   fieldLabel: {
     fontSize: 11,
     fontWeight: "700",
     color: colors.primary,
     letterSpacing: 1,
     marginBottom: 6,
+  },
+  fieldLabelRoadkill: {
+    color: "#f87171",
+  },
+  fieldLabelLive: {
+    color: "#4ade80",
   },
   inputRow: {
     flexDirection: "row",
@@ -432,6 +472,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  inputRoadkill: {
+    borderColor: "#7f1d1d",
+  },
+  inputLive: {
+    borderColor: "#14532d",
   },
   notesInput: {
     minHeight: 80,
@@ -460,23 +506,34 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: colors.primary,
     borderRadius: 12,
-    padding: 16,
+    paddingVertical: 18,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelButton: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: "transparent",
     borderRadius: 12,
-    padding: 16,
+    paddingVertical: 18,
     alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#7f1d1d",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
+  buttonIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  saveButtonText: {
     color: colors.white,
-    fontSize: 15,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  cancelButtonText: {
+    color: "#f87171",
+    fontSize: 13,
     fontWeight: "700",
   },
 
