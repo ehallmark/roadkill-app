@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
 import { useLocation } from "../hooks/useLocation";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
@@ -28,6 +29,17 @@ export default function LogSightingScreen() {
 
   const location = useLocation();
   const speech = useSpeechRecognition();
+
+  // Refresh location on focus and every 5 minutes while on screen
+  useFocusEffect(
+    useCallback(() => {
+      location.refresh();
+      const interval = setInterval(() => {
+        location.refresh();
+      }, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }, [])
+  );
 
   // Sync speech transcript into the animal field and detect status
   useEffect(() => {

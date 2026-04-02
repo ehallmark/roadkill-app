@@ -2,6 +2,7 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, StyleSheet } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import LogSightingScreen from "./src/screens/LogSightingScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import MapScreen from "./src/screens/MapScreen";
@@ -10,6 +11,7 @@ const Tab = createBottomTabNavigator();
 
 export default function App() {
   return (
+    <SafeAreaProvider>
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={{
@@ -52,6 +54,7 @@ export default function App() {
         />
       </Tab.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
@@ -60,8 +63,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e293b",
     borderTopColor: "#334155",
     borderTopWidth: 1,
-    height: 70,
-    paddingBottom: 10,
     paddingTop: 8,
   },
   tabLabel: {
