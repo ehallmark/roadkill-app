@@ -233,108 +233,92 @@ export default function LogSightingScreen() {
           )}
         </View>
 
-        {/* Two-column body */}
-        <View style={styles.body}>
-          {/* Left column: inputs */}
-          <View style={styles.leftColumn}>
-            {/* Roadkill input */}
-            <View style={[styles.fieldCard, styles.fieldCardRoadkill]}>
-              <Text style={[styles.fieldLabel, styles.fieldLabelRoadkill]}>
-                💀 ROADKILL
-              </Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={[styles.input, styles.inputRoadkill]}
-                  placeholder="Animal name..."
-                  placeholderTextColor={colors.textMuted}
-                  value={roadkillAnimal}
-                  onChangeText={setRoadkillAnimal}
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                />
-                {renderMicButton("roadkill")}
-              </View>
-            </View>
-
-            {/* Live input */}
-            <View style={[styles.fieldCard, styles.fieldCardLive]}>
-              <Text style={[styles.fieldLabel, styles.fieldLabelLive]}>
-                🦌 LIVE
-              </Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={[styles.input, styles.inputLive]}
-                  placeholder="Animal name..."
-                  placeholderTextColor={colors.textMuted}
-                  value={liveAnimal}
-                  onChangeText={setLiveAnimal}
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                />
-                {renderMicButton("live")}
-              </View>
-            </View>
-
-            {/* Notes input */}
-            <View style={styles.fieldCard}>
-              <Text style={styles.fieldLabel}>📝 NOTES</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={[styles.input, styles.notesInput]}
-                  placeholder="Details..."
-                  placeholderTextColor={colors.textMuted}
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  textAlignVertical="top"
-                />
-                {renderMicButton("notes")}
-              </View>
-            </View>
-
-            {speech.isListening && (
-              <Text style={styles.listeningText}>
-                Listening ({activeField})...
-              </Text>
-            )}
-            {speech.error && (
-              <Text style={styles.errorText}>Voice: {speech.error}</Text>
-            )}
+        {/* Roadkill input */}
+        <View style={[styles.fieldCard, styles.fieldCardRoadkill]}>
+          <Text style={[styles.fieldLabel, styles.fieldLabelRoadkill]}>
+            💀 ROADKILL
+          </Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.inputRoadkill]}
+              placeholder="Animal name..."
+              placeholderTextColor={colors.textMuted}
+              value={roadkillAnimal}
+              onChangeText={setRoadkillAnimal}
+              autoCapitalize="words"
+              returnKeyType="done"
+            />
+            {renderMicButton("roadkill")}
           </View>
+        </View>
 
-          {/* Right column: buttons aligned with left column rows */}
-          <View style={styles.rightColumn}>
-            {/* Save button — aligns with Roadkill + Live cards */}
-            <View style={styles.rightButtonWrapper}>
-              <TouchableOpacity
-                style={[styles.saveButton, saving && styles.buttonDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-                activeOpacity={0.8}
-              >
-                {saving ? (
-                  <ActivityIndicator color={colors.white} size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.buttonIcon}>💾</Text>
-                    <Text style={styles.saveButtonText}>Save</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Cancel button — aligns with Notes card */}
-            <View style={styles.rightButtonWrapperNotes}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancel}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.buttonIcon}>✕</Text>
-                <Text style={styles.cancelButtonText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Live input */}
+        <View style={[styles.fieldCard, styles.fieldCardLive]}>
+          <Text style={[styles.fieldLabel, styles.fieldLabelLive]}>
+            🦌 LIVE
+          </Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.inputLive]}
+              placeholder="Animal name..."
+              placeholderTextColor={colors.textMuted}
+              value={liveAnimal}
+              onChangeText={setLiveAnimal}
+              autoCapitalize="words"
+              returnKeyType="done"
+            />
+            {renderMicButton("live")}
           </View>
+        </View>
+
+        {/* Notes input */}
+        <View style={styles.fieldCard}>
+          <Text style={styles.fieldLabel}>📝 NOTES</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.notesInput]}
+              placeholder="Details..."
+              placeholderTextColor={colors.textMuted}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              textAlignVertical="top"
+            />
+            {renderMicButton("notes")}
+          </View>
+        </View>
+
+        {speech.isListening && (
+          <Text style={styles.listeningText}>
+            Listening ({activeField})...
+          </Text>
+        )}
+        {speech.error && (
+          <Text style={styles.errorText}>Voice: {speech.error}</Text>
+        )}
+
+        {/* Buttons row */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <Text style={styles.saveButtonText}>💾  Save</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancel}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.cancelButtonText}>✕  Clear</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -411,25 +395,12 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
 
-  // Body two-column layout
-  body: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  leftColumn: {
-    flex: 1,
-  },
-  rightColumn: {
-    width: 72,
-    justifyContent: "flex-start",
-  },
-
   // Field cards
   fieldCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -498,21 +469,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 
-  // Button wrappers to align with left column cards
-  rightButtonWrapper: {
-    flex: 2,
-    marginBottom: 12,
-  },
-  rightButtonWrapperNotes: {
-    flex: 2,
-    marginBottom: 12,
-  },
-
   // Buttons
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
   saveButton: {
     flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -520,6 +487,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
     borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -528,18 +496,14 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
   saveButtonText: {
     color: colors.white,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
   },
   cancelButtonText: {
     color: "#f87171",
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
   },
 
