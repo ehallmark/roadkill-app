@@ -7,6 +7,7 @@ interface LocationState {
   address: string | null;
   error: string | null;
   loading: boolean;
+  lastUpdated: Date | null;
 }
 
 export function useLocation() {
@@ -16,6 +17,7 @@ export function useLocation() {
     address: null,
     error: null,
     loading: true,
+    lastUpdated: null,
   });
 
   const fetchLocation = async () => {
@@ -55,6 +57,7 @@ export function useLocation() {
         address,
         error: null,
         loading: false,
+        lastUpdated: new Date(),
       });
     } catch (err: any) {
       setLocation((prev) => ({

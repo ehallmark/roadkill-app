@@ -36,7 +36,7 @@ export default function LogSightingScreen() {
       location.refresh();
       const interval = setInterval(() => {
         location.refresh();
-      }, 5 * 60 * 1000);
+      }, 60 * 1000);
       return () => clearInterval(interval);
     }, [])
   );
@@ -143,7 +143,14 @@ export default function LogSightingScreen() {
 
         {/* Location Card */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>LOCATION</Text>
+          <View style={styles.cardLabelRow}>
+            <Text style={styles.cardLabel}>LOCATION</Text>
+            {location.lastUpdated && (
+              <Text style={styles.lastUpdatedText}>
+                Updated {location.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </Text>
+            )}
+          </View>
           {location.loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
@@ -290,12 +297,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  cardLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   cardLabel: {
     fontSize: 12,
     fontWeight: "700",
     color: colors.primary,
     letterSpacing: 1,
-    marginBottom: 8,
+  },
+  lastUpdatedText: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   cardValue: {
     fontSize: 18,
