@@ -300,6 +300,14 @@ export default function LogSightingScreen() {
         {/* Buttons row */}
         <View style={styles.buttonRow}>
           <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancel}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.cancelButtonText}>✕  Clear</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.saveButton, saving && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={saving}
@@ -310,14 +318,6 @@ export default function LogSightingScreen() {
             ) : (
               <Text style={styles.saveButtonText}>💾  Save</Text>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={handleCancel}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.cancelButtonText}>✕  Clear</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
