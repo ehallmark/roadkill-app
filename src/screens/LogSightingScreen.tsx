@@ -296,31 +296,31 @@ export default function LogSightingScreen() {
         {speech.error && (
           <Text style={styles.errorText}>Voice: {speech.error}</Text>
         )}
-
-        {/* Buttons row */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={handleCancel}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.cancelButtonText}>✕  Clear</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.8}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <Text style={styles.saveButtonText}>💾  Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* Sticky footer buttons */}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={handleCancel}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.cancelButtonText}>✕  Clear</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.buttonDisabled]}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.8}
+        >
+          {saving ? (
+            <ActivityIndicator color={colors.white} size="small" />
+          ) : (
+            <Text style={styles.saveButtonText}>💾  Save</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -473,7 +473,11 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 4,
+    padding: 16,
+    paddingTop: 12,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   saveButton: {
     flex: 1,
