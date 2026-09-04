@@ -7,26 +7,47 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
-import { AnimalSighting, getSightings } from "../config/database";
+import { SightingView, getSightings, getSightingsLocal } from "../config/database";
+import { useSyncStatus } from "../sync/useSyncStatus";
 
 const DEFAULT_CENTER = { latitude: 39.8283, longitude: -98.5795 };
 const DEFAULT_ZOOM = 4;
 
 export default function MapScreen() {
-  const [sightings, setSightings] = useState<AnimalSighting[]>([]);
+  const [sightings, setSightings] = useState<SightingView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { online } = useSyncStatus();
+
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      getSightings()
+      let active = true;
+      getSightingsLocal()
         .then((data) => {
+          if (!active) return;
           setSightings(data);
-          setError(null);
+          if (data.length > 0) setLoading(false);
         })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+        .catch(() => {})
+        .finally(() => {
+          if (!active) return;
+          getSightings()
+            .then((data) => {
+              if (!active) return;
+              setSightings(data);
+              setError(null);
+            })
+            .catch((err) => {
+              if (active) setError(err.message);
+            })
+            .finally(() => {
+              if (active) setLoading(false);
+            });
+        });
+      return () => {
+        active = false;
+      };
     }, [])
   );
 
@@ -35,6 +56,17 @@ export default function MapScreen() {
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading map...</Text>
+      </View>
+    );
+  }
+
+  if (!online) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>
+          🗺️ Map unavailable offline — {sightings.length} sighting
+          {sightings.length !== 1 ? "s" : ""} stored on this device
+        </Text>
       </View>
     );
   }
@@ -81,7 +113,7 @@ function LeafletMap({
   sightings,
   center,
 }: {
-  sightings: AnimalSighting[];
+  sightings: SightingView[];
   center: { latitude: number; longitude: number };
 }) {
   const mapRef = useRef<any>(null);
@@ -127,12 +159,15 @@ function LeafletMap({
         sightings.forEach((s) => {
           const markerColor = s.status === "dead" ? "#dc2626" : "#16a34a";
           const fillColor = s.status === "dead" ? "#fca5a5" : "#86efac";
+          // Not yet on the server: dashed and translucent, so it reads as provisional.
+          const unsynced = s.pending || s.failed;
           const marker = L.circleMarker([s.latitude, s.longitude], {
             radius: 10,
             color: markerColor,
             fillColor: fillColor,
-            fillOpacity: 0.8,
+            fillOpacity: unsynced ? 0.35 : 0.8,
             weight: 2,
+            ...(unsynced ? { dashArray: "4,3" } : {}),
           }).addTo(map);
           const dateStr = s.timestamp.toLocaleDateString("en-US", {
             month: "short",
@@ -147,6 +182,11 @@ function LeafletMap({
           const statusColor = s.status === "dead" ? "#dc2626" : "#16a34a";
           marker.bindPopup(
             `<div style="font-family:sans-serif;">` +
+              (s.failed
+                ? `<span style="color:#991b1b;">⚠️ Not synced</span><br/>`
+                : s.pending
+                ? `<span style="color:#b45309;">⏳ Pending</span><br/>`
+                : "") +
               `<strong style="font-size:16px;">${s.animal}</strong> ` +
               `<span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;">${statusLabel}</span><br/>` +
               `<span style="color:#666;">📍 ${s.address || `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`}</span><br/>` +

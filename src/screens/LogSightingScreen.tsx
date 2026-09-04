@@ -16,7 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
 import { useLocation } from "../hooks/useLocation";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
-import { addSighting } from "../config/database";
+import { AnimalSighting, addSightings, getSyncState } from "../config/database";
 
 type ActiveField = "roadkill" | "live" | "notes" | null;
 
@@ -113,45 +113,63 @@ export default function LogSightingScreen() {
       return;
     }
 
-    const lat = location.latitude ?? 0;
-    const lng = location.longitude ?? 0;
+    const hasFix = location.latitude != null && location.longitude != null;
     const sharedFields = {
-      latitude: lat,
-      longitude: lng,
+      latitude: location.latitude ?? 0,
+      longitude: location.longitude ?? 0,
       address: location.address || null,
       timestamp: new Date(),
       notes: notes.trim() || null,
     };
 
+    const pending: Omit<AnimalSighting, "id">[] = [];
+    const saved: string[] = [];
+
+    if (hasRoadkill) {
+      pending.push({
+        animal: roadkillAnimal.trim(),
+        status: "dead",
+        ...sharedFields,
+      });
+      saved.push(roadkillAnimal.trim());
+    }
+
+    if (hasLive) {
+      pending.push({
+        animal: liveAnimal.trim(),
+        status: "live",
+        ...sharedFields,
+      });
+      saved.push(liveAnimal.trim());
+    }
+
     setSaving(true);
     try {
-      const saved: string[] = [];
+      // Writes to device storage and returns immediately; the sync engine takes it
+      // from here. Both records queue in one atomic write, so a two-animal save can
+      // never half-land the way it could when this awaited the network per record.
+      await addSightings(pending);
 
-      if (hasRoadkill) {
-        await addSighting({
-          animal: roadkillAnimal.trim(),
-          status: "dead",
-          ...sharedFields,
-        });
-        saved.push(roadkillAnimal.trim());
-        setRoadkillAnimal("");
-      }
-
-      if (hasLive) {
-        await addSighting({
-          animal: liveAnimal.trim(),
-          status: "live",
-          ...sharedFields,
-        });
-        saved.push(liveAnimal.trim());
-        setLiveAnimal("");
-      }
-
+      setRoadkillAnimal("");
+      setLiveAnimal("");
       setNotes("");
       speech.clearTranscript();
-      showToast(`Saved: ${saved.join(", ")}`, "success");
+
+      const suffix = [
+        !getSyncState().online ? "queued offline" : null,
+        !hasFix ? "no GPS fix" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      showToast(
+        `Saved: ${saved.join(", ")}${suffix ? ` · ${suffix}` : ""}`,
+        "success"
+      );
     } catch (err: any) {
-      showToast(err.message || "Failed to save", "error");
+      // Only reachable if device storage itself failed. Keep the fields populated so
+      // the text isn't lost.
+      showToast(err.message || "Couldn't save to device storage", "error");
     } finally {
       setSaving(false);
     }

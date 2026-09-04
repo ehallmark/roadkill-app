@@ -8,6 +8,7 @@ A React Native (Expo) Android app for logging animal sightings as you drive acro
 - **GPS Geolocation** — Automatically tags each sighting with coordinates and reverse-geocoded address
 - **Date & Time** — Every sighting is timestamped
 - **Cloud Storage** — All data stored in Firebase Cloud Firestore
+- **Works Offline** — Sightings save to the device instantly and sync themselves once you're back in range
 - **Sighting History** — Browse, pull-to-refresh, and delete past sightings
 
 ## Setup
@@ -67,13 +68,23 @@ npx expo run:android
 roadkill-app/
 ├── App.tsx                          # Root with tab navigation
 ├── src/
+│   ├── components/
+│   │   └── SyncStatusBar.tsx        # Offline / pending sync indicator
 │   ├── config/
-│   │   └── firebase.ts              # Firebase init + Firestore CRUD
+│   │   ├── firebase.ts              # Firebase init + Firestore CRUD
+│   │   ├── remote.ts                # Backend transport + request timeouts
+│   │   └── database.ts              # Offline-first data facade (used by screens)
+│   ├── storage/
+│   │   └── localStore.ts            # On-device cache + unsynced outbox
+│   ├── sync/
+│   │   ├── syncEngine.ts            # Background sync loop
+│   │   └── useSyncStatus.ts         # Sync state hook
 │   ├── hooks/
 │   │   ├── useLocation.ts           # GPS + reverse geocoding hook
 │   │   └── useSpeechRecognition.ts  # Voice input hook
 │   ├── screens/
 │   │   ├── LogSightingScreen.tsx    # Main logging screen
+│   │   ├── MapScreen.*.tsx          # Leaflet map (native WebView / web iframe)
 │   │   └── HistoryScreen.tsx        # Sighting history list
 │   └── theme/
 │       └── colors.ts                # App color palette
@@ -81,10 +92,36 @@ roadkill-app/
 └── package.json
 ```
 
+## Offline Mode
+
+Saving never waits on the network. Every sighting is written to device storage and
+returns immediately, then a background sync engine uploads it whenever a connection is
+available — so logging works normally through a dead zone and nothing is lost.
+
+- A status pill above the tab bar shows `📴 Offline · N queued` while anything is
+  waiting. Tap it to force a sync attempt; long-press for the error detail.
+- Unsynced sightings appear in History right away with a `⏳ PENDING` badge, and on the
+  Map as dashed markers. History and the Map read from a local cache, so they keep
+  working with no signal.
+- Queued sightings survive force-quitting the app. Nothing is ever discarded: a record
+  that keeps failing to upload is marked `⚠️ NOT SYNCED` and retried with backoff
+  rather than dropped.
+- Deleting works offline too — the delete is queued and applied on the next sync.
+- Firestore writes use a client-generated document id, so a retried upload can never
+  create a duplicate.
+- The Map tab needs a connection for its tiles, so it shows a placeholder offline;
+  your sightings are still stored and appear once you reconnect.
+- Voice input falls back to Android's on-device recognizer when there's no connection.
+  The English model (~30–50 MB, stored by Google's Speech Services, not in the APK) is
+  fetched once on a connected launch — so open the app while you still have signal
+  before a long trip.
+
 ## Tech Stack
 
 - **React Native** with **Expo SDK 54**
 - **TypeScript**
+- **AsyncStorage** for the offline cache and sync queue
+- **expo-network** for connectivity detection
 - **Firebase Cloud Firestore** for cloud database
 - **expo-location** for GPS
 - **expo-speech-recognition** for voice input

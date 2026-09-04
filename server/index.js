@@ -16,6 +16,10 @@ async function connectDB() {
   const client = new MongoClient(MONGO_URL);
   await client.connect();
   db = client.db(DB_NAME);
+  // Backs the clientId upsert below. Sparse so pre-existing rows without one are fine.
+  await db
+    .collection(COLLECTION)
+    .createIndex({ clientId: 1 }, { unique: true, sparse: true });
   console.log("Connected to MongoDB");
 }
 
@@ -31,6 +35,7 @@ app.get("/sightings", async (req, res) => {
     const result = sightings.map((doc) => ({
       id: doc._id.toString(),
       animal: doc.animal,
+      status: doc.status === "dead" ? "dead" : "live",
       latitude: doc.latitude,
       longitude: doc.longitude,
       address: doc.address || null,
@@ -48,7 +53,8 @@ app.get("/sightings", async (req, res) => {
 // POST /sightings — create a new sighting
 app.post("/sightings", async (req, res) => {
   try {
-    const { animal, latitude, longitude, address, timestamp, notes } = req.body;
+    const { animal, status, latitude, longitude, address, timestamp, notes, clientId } =
+      req.body;
 
     if (!animal || latitude == null || longitude == null) {
       return res
@@ -58,12 +64,24 @@ app.post("/sightings", async (req, res) => {
 
     const doc = {
       animal,
+      status: status === "dead" ? "dead" : "live",
       latitude,
       longitude,
       address: address || null,
       timestamp: timestamp ? new Date(timestamp) : new Date(),
       notes: notes || null,
     };
+
+    // The client retries writes it timed out on, and one of those may already have
+    // been processed here. Keying on clientId makes the retry converge on the same
+    // row instead of creating a duplicate sighting.
+    if (clientId) {
+      await db
+        .collection(COLLECTION)
+        .updateOne({ clientId }, { $setOnInsert: { ...doc, clientId } }, { upsert: true });
+      const existing = await db.collection(COLLECTION).findOne({ clientId });
+      return res.status(201).json({ id: existing._id.toString() });
+    }
 
     const result = await db.collection(COLLECTION).insertOne(doc);
     res.status(201).json({ id: result.insertedId.toString() });

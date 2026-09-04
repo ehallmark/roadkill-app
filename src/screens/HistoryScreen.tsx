@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,10 +11,17 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
-import { AnimalSighting, getSightings, deleteSighting } from "../config/database";
+import {
+  SightingView,
+  getSightings,
+  getSightingsLocal,
+  deleteSighting,
+  syncNow,
+} from "../config/database";
+import { useSyncStatus } from "../sync/useSyncStatus";
 
 export default function HistoryScreen() {
-  const [sightings, setSightings] = useState<AnimalSighting[]>([]);
+  const [sightings, setSightings] = useState<SightingView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +30,8 @@ export default function HistoryScreen() {
   const fetchSightings = useCallback(async () => {
     try {
       setError(null);
+      // Resolves from the local cache merged with anything still queued, so this
+      // succeeds offline rather than throwing.
       const data = await getSightings();
       setSightings(data);
     } catch (err: any) {
@@ -35,17 +44,41 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      fetchSightings();
+      let active = true;
+      // Paint from local storage first so switching tabs never blanks the list
+      // behind a spinner, then refresh in the background.
+      getSightingsLocal()
+        .then((data) => {
+          if (!active) return;
+          setSightings(data);
+          if (data.length > 0) setLoading(false);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) fetchSightings();
+        });
+      return () => {
+        active = false;
+      };
     }, [fetchSightings])
   );
 
-  const handleRefresh = () => {
+  // The sync engine drains in the background, so refresh the rows whenever the
+  // queue changes — otherwise PENDING badges linger after everything has synced.
+  const { pending, failed } = useSyncStatus();
+  useEffect(() => {
+    getSightingsLocal()
+      .then(setSightings)
+      .catch(() => {});
+  }, [pending, failed]);
+
+  const handleRefresh = async () => {
     setRefreshing(true);
+    await syncNow().catch(() => {});
     fetchSightings();
   };
 
-  const handleDelete = (sighting: AnimalSighting) => {
+  const handleDelete = (sighting: SightingView) => {
     Alert.alert(
       "Delete Sighting",
       `Remove "${sighting.animal}" from your log?`,
@@ -84,7 +117,7 @@ export default function HistoryScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: AnimalSighting }) => {
+  const renderItem = ({ item }: { item: SightingView }) => {
     const isExpanded = expandedId === item.id;
     const hasNotes = !!item.notes;
 
@@ -110,6 +143,16 @@ export default function HistoryScreen() {
                 {item.status === "dead" ? "💀 ROADKILL" : "🦌 LIVE"}
               </Text>
             </View>
+            {item.failed && (
+              <View style={[styles.statusBadge, styles.statusFailed]}>
+                <Text style={styles.statusBadgeText}>⚠️ NOT SYNCED</Text>
+              </View>
+            )}
+            {item.pending && (
+              <View style={[styles.statusBadge, styles.statusPending]}>
+                <Text style={styles.pendingBadgeText}>⏳ PENDING</Text>
+              </View>
+            )}
           </View>
           <View style={styles.dateBadge}>
             <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
@@ -155,6 +198,8 @@ export default function HistoryScreen() {
     );
   };
 
+  const unsyncedCount = sightings.filter((s) => s.pending || s.failed).length;
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -164,7 +209,7 @@ export default function HistoryScreen() {
     );
   }
 
-  if (error) {
+  if (error && sightings.length === 0) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorEmoji}>⚠️</Text>
@@ -182,6 +227,7 @@ export default function HistoryScreen() {
         <Text style={styles.title}>📋 Sighting History</Text>
         <Text style={styles.subtitle}>
           {sightings.length} sighting{sightings.length !== 1 ? "s" : ""} logged
+          {unsyncedCount > 0 ? ` · ${unsyncedCount} not synced` : ""}
         </Text>
       </View>
 
@@ -196,7 +242,7 @@ export default function HistoryScreen() {
       ) : (
         <FlatList
           data={sightings}
-          keyExtractor={(item) => item.id || Math.random().toString()}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -274,6 +320,18 @@ const styles = StyleSheet.create({
   },
   statusDead: {
     backgroundColor: "#5c1a1a",
+  },
+  statusPending: {
+    backgroundColor: colors.surfaceLight,
+  },
+  statusFailed: {
+    backgroundColor: "#991b1b",
+  },
+  pendingBadgeText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   statusBadgeText: {
     color: "#fff",

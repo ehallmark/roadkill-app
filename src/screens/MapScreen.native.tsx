@@ -8,25 +8,46 @@ import {
 import { WebView } from "react-native-webview";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
-import { AnimalSighting, getSightings } from "../config/database";
+import { SightingView, getSightings, getSightingsLocal } from "../config/database";
+import { useSyncStatus } from "../sync/useSyncStatus";
 
 const DEFAULT_CENTER = { latitude: 39.8283, longitude: -98.5795 };
 
 export default function MapScreen() {
-  const [sightings, setSightings] = useState<AnimalSighting[]>([]);
+  const [sightings, setSightings] = useState<SightingView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { online } = useSyncStatus();
+
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      getSightings()
+      let active = true;
+      getSightingsLocal()
         .then((data) => {
+          if (!active) return;
           setSightings(data);
-          setError(null);
+          if (data.length > 0) setLoading(false);
         })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+        .catch(() => {})
+        .finally(() => {
+          if (!active) return;
+          getSightings()
+            .then((data) => {
+              if (!active) return;
+              setSightings(data);
+              setError(null);
+            })
+            .catch((err) => {
+              if (active) setError(err.message);
+            })
+            .finally(() => {
+              if (active) setLoading(false);
+            });
+        });
+      return () => {
+        active = false;
+      };
     }, [])
   );
 
@@ -35,6 +56,19 @@ export default function MapScreen() {
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading map...</Text>
+      </View>
+    );
+  }
+
+  if (!online) {
+    const stored = sightings.length;
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.offlineEmoji}>🗺️</Text>
+        <Text style={styles.errorText}>Map unavailable offline</Text>
+        <Text style={styles.offlineHint}>
+          {stored} sighting{stored !== 1 ? "s" : ""} stored on this device
+        </Text>
       </View>
     );
   }
@@ -72,7 +106,13 @@ export default function MapScreen() {
       const desc = (s.address || `${(s.latitude ?? 0).toFixed(4)}, ${(s.longitude ?? 0).toFixed(4)}`).replace(/'/g, "\\'");
       const dateStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : "";
       const timeStr = s.timestamp ? new Date(s.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : "";
-      return `L.circleMarker([${s.latitude ?? 0}, ${s.longitude ?? 0}], {radius: 10, color: '${statusColor}', fillColor: '${fillColor}', fillOpacity: 0.8, weight: 2}).addTo(map).bindPopup('<b>${label}</b> <span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${statusLabel}</span><br/>${desc}<br/>${dateStr} ${timeStr}');`;
+      // Not yet on the server: draw it dashed and translucent so it reads as provisional.
+      const unsynced = s.pending || s.failed;
+      const markerOpts = unsynced
+        ? `{radius: 10, color: '${statusColor}', fillColor: '${fillColor}', fillOpacity: 0.35, weight: 2, dashArray: '4,3'}`
+        : `{radius: 10, color: '${statusColor}', fillColor: '${fillColor}', fillOpacity: 0.8, weight: 2}`;
+      const prefix = s.failed ? "⚠️ Not synced · " : s.pending ? "⏳ Pending · " : "";
+      return `L.circleMarker([${s.latitude ?? 0}, ${s.longitude ?? 0}], ${markerOpts}).addTo(map).bindPopup('${prefix}<b>${label}</b> <span style="background:${statusColor};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${statusLabel}</span><br/>${desc}<br/>${dateStr} ${timeStr}');`;
     })
     .join("\n");
 
@@ -159,5 +199,15 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 16,
     textAlign: "center",
+  },
+  offlineEmoji: {
+    fontSize: 44,
+    marginBottom: 12,
+  },
+  offlineHint: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 6,
   },
 });

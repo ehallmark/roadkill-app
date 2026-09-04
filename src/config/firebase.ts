@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import {
   getFirestore,
   collection,
-  addDoc,
+  setDoc,
   getDocs,
   query,
   orderBy,
@@ -41,14 +41,28 @@ export interface AnimalSighting {
 
 const COLLECTION_NAME = "sightings";
 
-export async function addSighting(
+/**
+ * Writes a sighting at a caller-supplied document id.
+ *
+ * IMPORTANT: this uses setDoc, not addDoc, and that is load-bearing. The offline
+ * queue retries writes, and a write we timed out on can still commit later. With a
+ * deterministic id every one of those paths converges on the same document. Switch
+ * this back to addDoc and every retry becomes a duplicate sighting.
+ */
+export async function addSightingWithId(
+  id: string,
   sighting: Omit<AnimalSighting, "id">
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-    ...sighting,
+  await setDoc(doc(db, COLLECTION_NAME, id), {
+    animal: sighting.animal,
+    status: sighting.status,
+    latitude: sighting.latitude,
+    longitude: sighting.longitude,
+    address: sighting.address ?? null,
+    notes: sighting.notes ?? null,
     timestamp: Timestamp.fromDate(sighting.timestamp),
   });
-  return docRef.id;
+  return id;
 }
 
 export async function getSightings(): Promise<AnimalSighting[]> {

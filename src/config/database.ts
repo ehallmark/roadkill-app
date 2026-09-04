@@ -1,100 +1,120 @@
-import { Platform } from "react-native";
-import Constants from "expo-constants";
-import { AnimalSighting, addSighting as firebaseAdd, getSightings as firebaseGet, deleteSighting as firebaseDelete } from "./firebase";
+import {
+  StoredSighting,
+  enqueueCreateMany,
+  enqueueDelete,
+  fromStored,
+  readCache,
+  readOutbox,
+  replaceCacheFromRemote,
+} from "../storage/localStore";
+import { AnimalSighting, IS_DEV, LOCAL_API, remoteGet } from "./remote";
+import { getSyncState, requestSync, syncNow } from "../sync/syncEngine";
 
-// In dev (Expo Go), use local API. In production, use Firebase.
-const IS_DEV = __DEV__;
+/**
+ * Offline-first data facade. Screens import the same three functions they always
+ * did; what changed is that none of them block on the network.
+ *
+ * Writes go to device storage and return immediately. Reads always resolve from the
+ * local cache merged with anything still queued, refreshing from the server in the
+ * background when it's reachable.
+ */
 
-// Detect the correct API host depending on platform:
-// - Web: use the same hostname the browser is on (localhost)
-// - Native device: use Expo's hostUri to get the dev machine IP
-// - Android emulator: fallback to 10.0.2.2
-function getLocalApiUrl(): string {
-  // Web: just use the browser's current hostname
-  if (Platform.OS === "web") {
-    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    return `http://${host}:3001`;
-  }
-
-  // Native: try to get the host IP from Expo's dev server
-  const debuggerHost =
-    Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
-  if (debuggerHost) {
-    const ip = debuggerHost.split(":")[0];
-    return `http://${ip}:3001`;
-  }
-
-  // Fallback for Android emulator
-  return "http://10.0.2.2:3001";
+export interface SightingView extends AnimalSighting {
+  id: string;
+  pending?: boolean;
+  failed?: boolean;
 }
 
-const LOCAL_API = getLocalApiUrl();
-
-console.log(`[database] mode=${IS_DEV ? "LOCAL" : "FIREBASE"}, api=${LOCAL_API}`);
-
-// ---- Local API client ----
-
-async function localAddSighting(sighting: Omit<AnimalSighting, "id">): Promise<string> {
-  console.log(`[database] POST ${LOCAL_API}/sightings`, sighting);
-  const res = await fetch(`${LOCAL_API}/sightings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...sighting,
-      timestamp: sighting.timestamp.toISOString(),
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(err.error || "Failed to save sighting");
-  }
-  const data = await res.json();
-  return data.id;
+function toView(
+  stored: StoredSighting,
+  flags?: { pending?: boolean; failed?: boolean }
+): SightingView {
+  return { ...fromStored(stored), id: stored.id, ...flags } as SightingView;
 }
 
-async function localGetSightings(): Promise<AnimalSighting[]> {
-  const res = await fetch(`${LOCAL_API}/sightings`);
-  if (!res.ok) {
-    throw new Error("Failed to fetch sightings");
+/**
+ * Cache first, then anything still in the outbox that isn't already represented,
+ * minus anything with a queued delete. Because commitCreateSuccess moves a record
+ * from outbox to cache under a single lock, a record can never appear in both — so
+ * this can't double-count.
+ */
+async function mergeLocal(): Promise<SightingView[]> {
+  const [cache, outbox] = await Promise.all([readCache(), readOutbox()]);
+
+  const deleted = new Set(
+    outbox.filter((e) => e.op === "delete" && e.targetId).map((e) => e.targetId!)
+  );
+
+  const byId = new Map<string, SightingView>();
+  for (const record of cache.records) {
+    if (!deleted.has(record.id)) byId.set(record.id, toView(record));
   }
-  const data = await res.json();
-  return data.map((item: any) => ({
-    ...item,
-    timestamp: new Date(item.timestamp),
-  }));
+  for (const entry of outbox) {
+    if (entry.op !== "create" || !entry.payload) continue;
+    if (deleted.has(entry.payload.id) || byId.has(entry.payload.id)) continue;
+    byId.set(
+      entry.payload.id,
+      toView(entry.payload, {
+        pending: entry.status === "pending",
+        failed: entry.status === "failed",
+      })
+    );
+  }
+
+  return [...byId.values()].sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+  );
 }
 
-async function localDeleteSighting(id: string): Promise<void> {
-  const res = await fetch(`${LOCAL_API}/sightings/${id}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) {
-    throw new Error("Failed to delete sighting");
-  }
+/** Queues a sighting locally and returns its id immediately. Never hits the network. */
+export async function addSighting(
+  sighting: Omit<AnimalSighting, "id">
+): Promise<string> {
+  const [created] = await enqueueCreateMany([sighting]);
+  requestSync("save");
+  return created.id;
 }
 
-// ---- Exported unified interface ----
-
-export async function addSighting(sighting: Omit<AnimalSighting, "id">): Promise<string> {
-  if (IS_DEV) {
-    return localAddSighting(sighting);
-  }
-  return firebaseAdd(sighting);
+/**
+ * Queues several sightings in one atomic write. LogSightingScreen can create both a
+ * "dead" and a "live" record from one tap, and this keeps them from half-landing.
+ */
+export async function addSightings(
+  sightings: Omit<AnimalSighting, "id">[]
+): Promise<string[]> {
+  const created = await enqueueCreateMany(sightings);
+  requestSync("save");
+  return created.map((c) => c.id);
 }
 
-export async function getSightings(): Promise<AnimalSighting[]> {
-  if (IS_DEV) {
-    return localGetSightings();
+/**
+ * Refreshes from the server when possible, but ALWAYS resolves from local data.
+ * Being offline is not an error here — it only rejects if device storage fails.
+ */
+export async function getSightings(): Promise<SightingView[]> {
+  // Skip the round trip entirely when we already know we're offline, so a
+  // pull-to-refresh returns at once instead of spinning out the request timeout.
+  if (getSyncState().online) {
+    try {
+      const remote = await remoteGet();
+      await replaceCacheFromRemote(remote);
+    } catch (err: any) {
+      console.log(`[database] remote fetch unavailable, using cache: ${err.message}`);
+    }
   }
-  return firebaseGet();
+  requestSync("focus");
+  return mergeLocal();
+}
+
+/** Local-only read, for an instant first paint before the network is consulted. */
+export async function getSightingsLocal(): Promise<SightingView[]> {
+  return mergeLocal();
 }
 
 export async function deleteSighting(id: string): Promise<void> {
-  if (IS_DEV) {
-    return localDeleteSighting(id);
-  }
-  return firebaseDelete(id);
+  const { dropped } = await enqueueDelete(id);
+  if (!dropped) requestSync("save");
 }
 
-export { IS_DEV, LOCAL_API };
+export { IS_DEV, LOCAL_API, syncNow, getSyncState };
 export type { AnimalSighting };

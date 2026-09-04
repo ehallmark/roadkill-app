@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, StyleSheet } from "react-native";
@@ -6,10 +6,16 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import LogSightingScreen from "./src/screens/LogSightingScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import MapScreen from "./src/screens/MapScreen";
+import SyncStatusBar from "./src/components/SyncStatusBar";
+import { initSyncEngine } from "./src/sync/syncEngine";
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  // Owns the background sync loop for the life of the app: drains anything queued
+  // while offline as soon as a connection is available.
+  useEffect(() => initSyncEngine(), []);
+
   return (
     <SafeAreaProvider>
     <NavigationContainer>
@@ -53,6 +59,7 @@ export default function App() {
           }}
         />
       </Tab.Navigator>
+      <SyncStatusBar />
     </NavigationContainer>
     </SafeAreaProvider>
   );
